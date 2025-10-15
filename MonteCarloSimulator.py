@@ -132,3 +132,63 @@ class MonteCarloSimulator:
         return np.min(drawdown)
     
     def run_simulations(self, n_simulations: int, years: int = 5, parallel : bool = False, n_jobs: int = -1) -> pd.DataFrame:
+        """
+        ---------------------------------------------------------------
+                            Run monte carlo simulation
+        ---------------------------------------------------------------
+        n_simulations: int
+            The number of simulation paths
+        years : int
+            Number of years to simulate
+        Parallel : boolean
+            Whether to use parallel processing
+        n_jobs : int
+            The number of parallel jobs
+
+        returns : Dataframe with the results
+        """
+        days = years * 252 # number of trading days per year
+
+        print(f"Running {n_simulations:,} simulations for {years} years ({days} days)...")
+        print(f"Parallel processing: {parallel}")
+
+        start_time = time.time()
+
+        if parallel:
+            results = self._run_parallel(n_simulations, days, n_jobs)
+        else:
+            results = self._run_serial(n_simulations, days)
+
+        elapsed = time.time() - start_time
+        print(f"Completed in {elapsed:.2f} seconds ({n_simulations/elapsed:0f} sims/sec)")
+
+        return results
+    
+    def _run_serial(self, n_simulations: int, days: int) -> pd.DataFrame:
+        """
+        ---------------------------------------------------------------
+                            Run simulation serially
+        ---------------------------------------------------------------
+        """
+        results = []
+
+        for i in range(n_simulations):
+            _, metrics = self.simulate_single_path(days, seed = i)
+            results.append(metrics)
+
+            if (i+1) % 100 == 0:
+                print(f" Progress: {i+1:,}/{n_simulations:,}")
+
+        return pd.DataFrame(results)
+    
+    def _run_parallel(self, n_simulations: int, days: int, n_jobs: int = -1) -> pd.DataFrame:
+        """
+        ---------------------------------------------------------------
+                            Run simulation in parallel
+        ---------------------------------------------------------------
+        """
+        
+        
+        
+        
+        return pd.DataFrame(results)
