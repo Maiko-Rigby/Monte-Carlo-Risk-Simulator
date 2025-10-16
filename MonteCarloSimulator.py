@@ -187,8 +187,35 @@ class MonteCarloSimulator:
                             Run simulation in parallel
         ---------------------------------------------------------------
         """
+        if n_jobs == -1:
+            n_jobs = mp.cpu_count()
         
+        print(f"Using {n_jobs} CPU cores")
         
-        
+        sim_func = partial(self._simulate_worker, days = days)
+
+        with mp.pool(processes = n_jobs) as pool:
+            results = pool.map(sim_func, range(n_simulations))
         
         return pd.DataFrame(results)
+
+    def _simulate_worker(self, sim_id: int, days: int) -> dict:
+        """
+        ---------------------------------------------------------------
+                    Worker function for the parallel execution
+        ---------------------------------------------------------------
+        """
+        _, metrics = self.simulate_single_path(days, seed= sim_id)
+        metrics['simulation_id'] = sim_id
+
+        return metrics
+    
+    def save_results(self, results_df: pd.DataFrame, filename: str = 'simulation_results.csv'):
+        """
+        ---------------------------------------------------------------
+                            Save the results as a CSV
+        ---------------------------------------------------------------
+        """
+        output_path = Path(filename)
+        results_df.to_csv(output_path, index=False)
+        
