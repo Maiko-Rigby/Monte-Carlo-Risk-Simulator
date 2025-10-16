@@ -98,3 +98,7 @@ class PortfolioDataPreprocessor():
             'scaler': scaler
         }
     
+    def prepare_lstm_data(self, target_col='sharpe_ratio', sequence_length=10, test_size=0.2, forecast_horizon=1):
+        print("preparing LSTM data")
+
+        
