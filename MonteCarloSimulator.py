@@ -218,4 +218,72 @@ class MonteCarloSimulator:
         """
         output_path = Path(filename)
         results_df.to_csv(output_path, index=False)
+        print(f"Results saved at {output_path.absolute()}")
+        return output_path
+    
+    def visualalise_results(self, results_df: pd.DataFrame, save_path: str = None):
+        """
+        ---------------------------------------------------------------
+                        Create visualsations of the results
+        ---------------------------------------------------------------
+        """
+        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
         
+        # 1. Distribution of final portfolio values
+        ax1 = axes[0, 0]
+        ax1.hist(results_df['final_value'], bins=50, alpha=0.7, edgecolor='black')
+        ax1.axvline(results_df['final_value'].mean(), color='red', 
+                   linestyle='--', linewidth=2, label='Mean')
+        ax1.axvline(results_df['final_value'].median(), color='green', 
+                   linestyle='--', linewidth=2, label='Median')
+        ax1.set_xlabel('Final Portfolio Value ($)')
+        ax1.set_ylabel('Frequency')
+        ax1.set_title('Distribution of Final Portfolio Values')
+        ax1.legend()
+        ax1.grid(alpha=0.3)
+        
+        # 2. Total returns distribution
+        ax2 = axes[0, 1]
+        ax2.hist(results_df['total_return'] * 100, bins=50, alpha=0.7, 
+                edgecolor='black', color='green')
+        ax2.axvline(0, color='red', linestyle='--', linewidth=2)
+        ax2.set_xlabel('Total Return (%)')
+        ax2.set_ylabel('Frequency')
+        ax2.set_title('Distribution of Total Returns')
+        ax2.grid(alpha=0.3)
+        
+        # 3. Risk-Return scatter
+        ax3 = axes[1, 0]
+        scatter = ax3.scatter(results_df['volatility'] * 100, 
+                             results_df['total_return'] * 100,
+                             c=results_df['sharpe_ratio'], 
+                             cmap='RdYlGn', alpha=0.5, s=20)
+        ax3.set_xlabel('Volatility (%)')
+        ax3.set_ylabel('Total Return (%)')
+        ax3.set_title('Risk-Return Profile')
+        plt.colorbar(scatter, ax=ax3, label='Sharpe Ratio')
+        ax3.grid(alpha=0.3)
+        
+        # 4. Percentile outcomes
+        ax4 = axes[1, 1]
+        percentiles = [5, 25, 50, 75, 95]
+        values = [np.percentile(results_df['final_value'], p) for p in percentiles]
+        colors = ['red', 'orange', 'yellow', 'lightgreen', 'green']
+        bars = ax4.barh(percentiles, values, color=colors, edgecolor='black')
+        ax4.set_xlabel('Portfolio Value ($)')
+        ax4.set_ylabel('Percentile')
+        ax4.set_title('Portfolio Value by Percentile')
+        ax4.grid(axis='x', alpha=0.3)
+        
+        # Add value labels on bars
+        for bar, val in zip(bars, values):
+            ax4.text(val, bar.get_y() + bar.get_height()/2, 
+                    f'${val:,.0f}', va='center', ha='left', fontweight='bold')
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Visualization saved to: {save_path}")
+        
+        plt.show()
