@@ -9,6 +9,7 @@ from functools import partial
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+@dataclass
 class Stock:
     """
     ---------------------------------------------------------------
@@ -49,7 +50,7 @@ class MonteCarloSimulator:
         assert correlation_matrix.shape == (len(stocks), len(stocks)), "Correlation matrix dimensions must match the number of stocks"
 
         # Conver the annual parameters to daily
-        self.daily_returns = np.array([s.means_annual_return / 252 for s in stocks])
+        self.daily_returns = np.array([s.mean_annual_return / 252 for s in stocks])
         self.daily_volatilities = np.array([s.annual_volatility / 252 for s in stocks])
 
         # Create a covariance matrix for correlation and volatilities
@@ -194,7 +195,7 @@ class MonteCarloSimulator:
         
         sim_func = partial(self._simulate_worker, days = days)
 
-        with mp.pool(processes = n_jobs) as pool:
+        with mp.Pool(processes = n_jobs) as pool:
             results = pool.map(sim_func, range(n_simulations))
         
         return pd.DataFrame(results)
@@ -236,7 +237,7 @@ class MonteCarloSimulator:
                    linestyle='--', linewidth=2, label='Mean')
         ax1.axvline(results_df['final_value'].median(), color='green', 
                    linestyle='--', linewidth=2, label='Median')
-        ax1.set_xlabel('Final Portfolio Value ($)')
+        ax1.set_xlabel('Final Portfolio Value')
         ax1.set_ylabel('Frequency')
         ax1.set_title('Distribution of Final Portfolio Values')
         ax1.legend()
@@ -287,3 +288,80 @@ class MonteCarloSimulator:
             print(f"Visualization saved to: {save_path}")
         
         plt.show()
+
+    def analyse_results(self, results_df: pd.DataFrame) -> dict:
+        """
+        ---------------------------------------------------------------
+            Analyse simulation results and return summary statistics
+        ---------------------------------------------------------------
+        """
+        summary = {
+            'n_simulations': len(results_df),
+            'expected_final_value': results_df['final_value'].mean(),
+            'median_final_value': results_df['final_value'].median(),
+            'expected_total_return': results_df['total_return'].mean(),
+            'return_std': results_df['total_return'].std(),
+            'probability_profit': (results_df['total_return'] > 0).mean(),
+            'var_95_portfolio': np.percentile(results_df['final_value'], 5),
+            'cvar_95_portfolio': results_df[results_df['final_value'] <= np.percentile(results_df['final_value'], 5)]['final_value'].mean(),
+            'best_case': results_df['final_value'].max(),
+            'worst_case': results_df['final_value'].min(),
+            'mean_sharpe_ratio': results_df['sharpe_ratio'].mean(),
+            'mean_max_drawdown': results_df['max_drawdown'].mean(),
+        }
+        
+        return summary
+
+
+def main():
+    mp.freeze_support()
+
+    stocks = [
+        Stock(ticker='AAPL', mean_annual_return=0.12, annual_volatility=0.25),
+        Stock(ticker='MSFT', mean_annual_return=0.15, annual_volatility=0.28),
+        Stock(ticker='GOOGL', mean_annual_return=0.10, annual_volatility=0.22),
+    ]
+
+    weights = [0.4, 0.3, 0.3]
+
+    correlation_matrix = np.array([
+        [1.0, 0.7, 0.6],   # AAPL correlations
+        [0.7, 1.0, 0.65],  # MSFT correlations
+        [0.6, 0.65, 1.0]   # GOOGL correlations
+    ])
+
+    portfolio = MonteCarloSimulator(
+        stocks=stocks,
+        weights=weights,
+        correlation_matrix=correlation_matrix,
+        initial_investment=10000
+    )
+
+    results_parallel = portfolio.run_simulations(
+        n_simulations=10000,
+        years=5,
+        parallel=False
+    )
+    summary = portfolio.analyse_results
+
+    print(f"\nExpected Final Value: ${summary['expected_final_value']:,.2f}")
+    print(f"Median Final Value: ${summary['median_final_value']:,.2f}")
+    print(f"Expected Total Return: {summary['expected_total_return']*100:.2f}%")
+    print(f"Return Std Dev: {summary['return_std']*100:.2f}%")
+    print(f"Probability of Profit: {summary['probability_profit']*100:.1f}%")
+    print(f"\nRisk Metrics:")
+    print(f"  95% VaR: ${summary['var_95_portfolio']:,.2f}")
+    print(f"  95% CVaR: ${summary['cvar_95_portfolio']:,.2f}")
+    print(f"  Best Case: ${summary['best_case']:,.2f}")
+    print(f"  Worst Case: ${summary['worst_case']:,.2f}")
+    print(f"  Mean Sharpe Ratio: {summary['mean_sharpe_ratio']:.3f}")
+    print(f"  Mean Max Drawdown: {summary['mean_max_drawdown']*100:.2f}%")
+    
+    # Save results
+    output_file = portfolio.save_results(results_parallel)
+    
+    # Visualize
+    print("\nGenerating visualizations...")
+    portfolio.visualize_results(results_parallel, save_path='portfolio_analysis.png')
+
+main()
