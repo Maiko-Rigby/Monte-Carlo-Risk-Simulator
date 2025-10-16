@@ -314,7 +314,6 @@ class MonteCarloSimulator:
 
 
 def main():
-    mp.freeze_support()
 
     stocks = [
         Stock(ticker='AAPL', mean_annual_return=0.12, annual_volatility=0.25),
@@ -364,4 +363,6 @@ def main():
     print("\nGenerating visualizations...")
     portfolio.visualise_results(results, save_path='portfolio_analysis.png')
 
-main()
+if __name__ == "__main__":
+    mp.freeze_support()  # for Windows compatibility
+    main()
