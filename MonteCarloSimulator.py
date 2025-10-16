@@ -222,7 +222,7 @@ class MonteCarloSimulator:
         print(f"Results saved at {output_path.absolute()}")
         return output_path
     
-    def visualalise_results(self, results_df: pd.DataFrame, save_path: str = None):
+    def visualise_results(self, results_df: pd.DataFrame, save_path: str = None):
         """
         ---------------------------------------------------------------
                         Create visualsations of the results
@@ -337,12 +337,12 @@ def main():
         initial_investment=10000
     )
 
-    results_parallel = portfolio.run_simulations(
+    results = portfolio.run_simulations(
         n_simulations=10000,
         years=5,
-        parallel=False
+        parallel=True
     )
-    summary = portfolio.analyse_results
+    summary = portfolio.analyse_results(results)
 
     print(f"\nExpected Final Value: ${summary['expected_final_value']:,.2f}")
     print(f"Median Final Value: ${summary['median_final_value']:,.2f}")
@@ -358,10 +358,10 @@ def main():
     print(f"  Mean Max Drawdown: {summary['mean_max_drawdown']*100:.2f}%")
     
     # Save results
-    output_file = portfolio.save_results(results_parallel)
+    output_file = portfolio.save_results(results)
     
     # Visualize
     print("\nGenerating visualizations...")
-    portfolio.visualize_results(results_parallel, save_path='portfolio_analysis.png')
+    portfolio.visualise_results(results, save_path='portfolio_analysis.png')
 
 main()
