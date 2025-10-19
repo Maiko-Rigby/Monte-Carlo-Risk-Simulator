@@ -101,4 +101,51 @@ class PortfolioDataPreprocessor():
     def prepare_lstm_data(self, target_col='sharpe_ratio', sequence_length=10, test_size=0.2, forecast_horizon=1):
         print("preparing LSTM data")
 
+        feature_cols = ['daily_return', 'volatility', 'portfolio_value', 'max_drawdown', 'momentum_5']
+        feature_cols = [col for col in feature_cols if col in self.df.columns]
+
+        x_sequences = []
+        y_targets = []
+
+        for sim_id in self.df['simulation_id'].unique():
+            sim_id = self.df[self.df['simulation_id'] == sim_id]
+
+            if len(sim_id) < sequence_length + forecast_horizon:
+                continue
+
+            features = sim_id[feature_cols].values
+            target = sim_id[target_col].values
+
+            for i in range(0, len(features)):
+                x_sequences.append(features[i : i + sequence_length])
+                y_targets.append(target[i + sequence_length + forecast_horizon - 1])
+
+        x_sequences = np.array(x_sequences)
+        y_targets = np.array(y_targets)
+
+        print(f"Shape of X_sequences : {x_sequences.shape}")
+        print(f"Shape of Y_target : {y_targets.shape}")
+
+        split_index = int(len(x_sequences) * (1 - test_size))
+        X_train = x_sequences[split_index:]
+        X_test = x_sequences[:split_index]
+        y_train = y_targets[split_index:]
+        y_test = y_targets[:split_index]
+
+        scaler = StandardScaler()
+        X_train_flat = X_train.reshape(-1, X_train.shape[-1])
+        scaler.fit(X_train_flat)
+        X_train_scaled = scaler.transform(X_train_flat).reshape(X_train.shape)
+        X_test_scaled = scaler.transform(X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
         
+        print(f"Train sequences: {X_train_scaled.shape}, Test sequences: {X_test_scaled.shape}")
+        
+        return {
+            'X_train': X_train_scaled,
+            'X_test': X_test_scaled,
+            'y_train': y_train,
+            'y_test': y_test,
+            'feature_names': feature_cols,
+            'scaler': scaler,
+            'sequence_length': sequence_length
+        }
