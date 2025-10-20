@@ -6,6 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.linear_model import Ridge, Lasso
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import matplotlib as plt
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -54,3 +55,34 @@ class RegressionModels:
         
         return self.results
 
+    def _calculate_metrics(self, y_true, y_pred):
+        return {
+            'rmse': np.sqrt(mean_squared_error(y_true, y_pred)),
+            'mae': mean_absolute_error(y_true, y_pred),
+            'r2': r2_score(y_true, y_pred),
+            'mape': np.mean(np.abs((y_true - y_pred) / (y_true + 1e-6))) * 100
+        }
+    
+    def feature_importance(self, model_name: str = "Random Forest"):
+
+        model = self.models[model_name]
+
+        if hasattr(model, "feature_importances_"):
+            importances = model.feature_importances_
+            indices = np.argsort(importances)[::-1][:10]
+                
+            plt.figure(figsize=(10, 6))
+            plt.barh(range(len(indices)), importances[indices])
+            plt.yticks(range(len(indices)), 
+                      [self.feature_names[i] for i in indices])
+            plt.xlabel('Importance')
+            plt.title(f'Top 10 Feature Importances - {model_name}')
+            plt.gca().invert_yaxis()
+            plt.tight_layout()
+            plt.show()
+
+            return dict(zip(self.feature_names, importances))
+        
+        else:
+            print(f"{model_name} does not have feature_importances_")
+            return None
