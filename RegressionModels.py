@@ -1,8 +1,4 @@
 import numpy as np
-import pandas as pd
-from pathlib import Path
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.linear_model import Ridge, Lasso
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
@@ -91,6 +87,28 @@ class RegressionModels:
 
         y_pred = self.result[model_name]["predictions"]
 
-        fig = plt.figure(figsize = (15,2))
+        fig, axes = plt.subplots(1, 2, figsize = (14,5))
 
-        fig.scatter()
+        axes[0].scatter(self.y_test, y_pred, alpha=0.5, s=10)
+        axes[0].plot([self.y_test.min(), self.y_test.max()], 
+                    [self.y_test.min(), self.y_test.max()], 
+                    'r--', lw=2, label='Perfect Prediction')
+        axes[0].set_xlabel('Actual Sharpe Ratio')
+        axes[0].set_ylabel('Predicted Sharpe Ratio')
+        axes[0].set_title(f'{model_name} - Predictions vs Actual')
+        axes[0].legend()
+        axes[0].grid(alpha=0.3)
+        
+        # Residuals
+        residuals = self.y_test - y_pred
+        axes[1].scatter(y_pred, residuals, alpha=0.5, s=10)
+        axes[1].axhline(y=0, color='r', linestyle='--', lw=2)
+        axes[1].set_xlabel('Predicted Values')
+        axes[1].set_ylabel('Residuals')
+        axes[1].set_title(f'{model_name} - Residual Plot')
+        axes[1].grid(alpha=0.3)
+        
+        plt.tight_layout()
+        plt.show()
+
+    
