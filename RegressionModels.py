@@ -86,3 +86,11 @@ class RegressionModels:
         else:
             print(f"{model_name} does not have feature_importances_")
             return None
+
+    def plot_predictions(self, model_name = "Random Forest"):
+
+        y_pred = self.result[model_name]["predictions"]
+
+        fig = plt.figure(figsize = (15,2))
+
+        fig.scatter()
