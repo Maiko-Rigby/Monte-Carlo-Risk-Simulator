@@ -44,7 +44,29 @@ class LSTMRiskPredictor (nn.Module):
         last_time = lstm_output[:, -1, :]
 
         output, _ = self.fc_network(last_time)
-        
+
         return output.squeeze()
         
 
+class LSTMTrainer:
+    def __init__(self, data_dict, hidden_size = 64, num_layers = 2, dropout = 0.2):
+        self.X_train = torch.tensor(data_dict['X_train'], dtype=torch.float32)
+        self.X_test = torch.tensor(data_dict['X_test'], dtype=torch.float32)
+        self.y_train = torch.tensor(data_dict['y_train'], dtype=torch.float32)
+        self.y_test = torch.tensor(data_dict['y_test'], dtype=torch.float32)
+
+        self.input_size = self.X_train.shape[2]
+
+        self.model = LSTMRiskPredictor(
+            input_size= self.input_size,
+            hidden_size= hidden_size,
+            num_layers= num_layers,
+            dropout = dropout if num_layers > 1 else 0
+        )
+
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+        self.model.to(self.device)
+
+        print(f"LSTM Model initialised on {self.device}")
+        print(f"Input size: {self.input_size},Hidden size: {hidden_size},Layers: {num_layers}")
