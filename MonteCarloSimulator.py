@@ -7,7 +7,6 @@ from pathlib import Path
 import multiprocessing as mp
 from functools import partial
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 @dataclass
 class Stock:
