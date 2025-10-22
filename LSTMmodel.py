@@ -70,3 +70,56 @@ class LSTMTrainer:
 
         print(f"LSTM Model initialised on {self.device}")
         print(f"Input size: {self.input_size},Hidden size: {hidden_size},Layers: {num_layers}")
+
+    def train(self, epochs = 50, batch_size = 64, learning_rate = 0.001):
+        train_dataset = TensorDataset(self.X_train, self.y_train)
+        data_loader = DataLoader(train_dataset, batch_size = batch_size, shuffle= True)
+
+        loss_function = nn.MSELoss()
+        optimiser = optim.Adam(self.model.parameters(), lr = learning_rate)
+        lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimiser, patience=5, factor=0.5)
+
+        train_losses = []
+        val_losses = []
+        best_val_loss = float("inf")
+
+        for epoch in range(epochs):
+            
+            self.model.train()
+            epoch_loss = 0.0
+
+            for X_batch, y_batch in data_loader:
+                X_batch = X_batch.to(self.device)
+                y_batch = y_batch.to(self.device)
+
+                optimiser.zero_grad()
+                output = self.model(X_batch)
+                loss = loss_function(output, y_batch)
+                loss.backward()
+                optimiser.step()
+
+                epoch_loss += loss.item()
+                
+            avg_train_loss = epoch_loss / len(epoch_loss)
+            train_losses.append(avg_train_loss)
+
+            self.model.eval()
+            with torch.no_grad():
+                X_test_device = self.X_test.to(self.device)
+                y_test_device = self.y_test.to(self.device)
+                val_pred = self.model(X_test_device)
+                val_loss = loss_function(val_pred, y_test_device).item()
+                val_losses.append(val_loss)
+
+            lr_scheduler.step(val_loss)
+
+            if (epoch + 1) % 10:
+                print(f"Epoch {epoch+1}/{epochs}, Train loss: {avg_train_loss}, Validation loss: {val_loss}")
+
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                torch.save(self.model.state_dict(), "best_lstm_model.pth")
+
+        self.model.load_state_dict(torch.load("best_lstm_model.pth"))
+
+        return train_losses, val_losses
