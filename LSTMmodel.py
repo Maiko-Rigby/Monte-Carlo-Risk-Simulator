@@ -123,3 +123,46 @@ class LSTMTrainer:
         self.model.load_state_dict(torch.load("best_lstm_model.pth"))
 
         return train_losses, val_losses
+    
+    def evaluate(self):
+
+        self.model.eval()
+            
+        with torch.no_grad():
+            # Predictions
+            X_train_device = self.X_train.to(self.device)
+            X_test_device = self.X_test.to(self.device)
+            
+            y_train_pred = self.model(X_train_device).cpu().numpy()
+            y_test_pred = self.model(X_test_device).cpu().numpy()
+            
+            y_train_true = self.y_train.numpy()
+            y_test_true = self.y_test.numpy()
+        
+        # Calculate metrics
+        train_metrics = {
+            'rmse': np.sqrt(mean_squared_error(y_train_true, y_train_pred)),
+            'mae': mean_absolute_error(y_train_true, y_train_pred),
+            'r2': r2_score(y_train_true, y_train_pred)
+        }
+        
+        test_metrics = {
+            'rmse': np.sqrt(mean_squared_error(y_test_true, y_test_pred)),
+            'mae': mean_absolute_error(y_test_true, y_test_pred),
+            'r2': r2_score(y_test_true, y_test_pred)
+        }
+        
+        print(f"\nLSTM Results:")
+        print(f"  Train R²: {train_metrics['r2']:.4f}, RMSE: {train_metrics['rmse']:.4f}")
+        print(f"  Test R²:  {test_metrics['r2']:.4f}, RMSE: {test_metrics['rmse']:.4f}")
+        
+        return {
+            'train': train_metrics,
+            'test': test_metrics,
+            'predictions': y_test_pred,
+            'actuals': y_test_true
+        }
+
+
+        
+        
