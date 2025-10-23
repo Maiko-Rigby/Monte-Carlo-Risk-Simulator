@@ -74,3 +74,13 @@ def compare_models(regression_results, LSTM_results):
     axes[1].set_title('Model Performance Comparison (RMSE)')
     axes[1].legend()
     axes[1].grid(axis='y', alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+    best_model = comparison_df.iloc[0]
+    print(f"\n🏆 BEST MODEL: {best_model['Model']}")
+    print(f"   Test R²: {best_model['Test R²']:.4f}")
+    print(f"   Test RMSE: {best_model['Test RMSE']:.4f}")
+    
+    return comparison_df
