@@ -64,6 +64,13 @@ def compare_models(regression_results, LSTM_results):
     axes[0].legend()
     axes[0].grid(axis='y', alpha=0.3)
 
-    
-
-    
+    axes[1].bar([i-0.2 for i in x], comparison_df['Train RMSE'], width=0.4, 
+               label='Train', alpha=0.8)
+    axes[1].bar([i+0.2 for i in x], comparison_df['Test RMSE'], width=0.4, 
+               label='Test', alpha=0.8)
+    axes[1].set_xticks(x)
+    axes[1].set_xticklabels(comparison_df['Model'], rotation=45, ha='right')
+    axes[1].set_ylabel('RMSE')
+    axes[1].set_title('Model Performance Comparison (RMSE)')
+    axes[1].legend()
+    axes[1].grid(axis='y', alpha=0.3)
