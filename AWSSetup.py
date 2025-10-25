@@ -15,10 +15,10 @@ class AWSSetup:
     def __init__(self, region = "eu-north-1"):
         
         self.region = region
-        self.s3_client = boto3.client('s3',region_name = region)
-        self.s3_resource = boto3.resource('s3',region_name = region)
-        self.iam_client = boto3.client('iam',region_name = region)
-        self.sagemaker_client = boto3.client('sagemaker',region_name = region)
+        self.s3_client = boto3.client('s3',region_name = self.region)
+        self.s3_resource = boto3.resource('s3',region_name = self.region)
+        self.iam_client = boto3.client('iam',region_name = self.region)
+        self.sagemaker_client = boto3.client('sagemaker',region_name = self.region)
 
         try:
             self.sagemaker_session =  sagemaker.Session()
@@ -32,3 +32,19 @@ class AWSSetup:
         print(f"Region: {self.region}")
         print(f"Role: {self.role}")
 
+    def verify_credentials(self):
+        try:
+            self.sts = boto3.client("STS", region_name = self.region)
+            self.identity = self.sts.get_caller_indentity()
+
+            print("AWS Credentials Verified")
+            print(f"Account: {self.identity["Account"]}")
+            print(f"User ARN: {self.identity["Arn"]}")
+            return True
+        
+        except Exception as e:
+            print(f"Credentials failed: {e}")
+            return False
+
+
+            
