@@ -90,5 +90,12 @@ class AWSSetup:
         
         return role_arn
 
+class S3DataManager:
+    def __init__(self, bucket_name, region = "eu-north-1"):
+        self.bucket_name = bucket_name
+        self.region = region
 
+        self.s3_client = boto3.client('s3',region_name = self.region)
+        self.s3_resource = boto3.resource('s3',region_name = self.region) 
+        
             
