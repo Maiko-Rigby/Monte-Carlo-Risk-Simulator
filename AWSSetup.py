@@ -46,5 +46,49 @@ class AWSSetup:
             print(f"Credentials failed: {e}")
             return False
 
+    def create_sagemaker_role(self, role_name = "SageMalerExecutionRole"):
+        try:
+            self.iam_client.get_role(RoleName=role_name)
+            print(f"Role {role_name} already exists")
+            role_arn = self.iam_client.get_role(RoleName=role_name)['Role']['Arn']
+            self.role = role_arn
+            return role_arn
+
+        except:
+            print(f"Creating a new SageMaker executioner role: {role_name}")
+
+        trust_policy = {
+                "Version": "2012-10-17",
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Principal": {"Service": "sagemaker.amazonaws.com"},
+                    "Action": "sts:AssumeRole"
+                }]
+            }
+
+        response = self.iam_client.create_role(
+                RoleName=role_name,
+                AssumeRolePolicyDocument=json.dumps(trust_policy),
+                Description='SageMaker execution role for ML training'
+            )
+
+        policies = [
+            'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess',
+            'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        ]
+        
+        for policy in policies:
+            self.iam_client.attach_role_policy(
+                RoleName=role_name,
+                PolicyArn=policy
+            )
+        
+        role_arn = response['Role']['Arn']
+        self.role = role_arn
+        print(f"Created role: {role_arn}")
+        print("IAM propagation...")
+        
+        return role_arn
+
 
             
