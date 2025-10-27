@@ -98,4 +98,25 @@ class S3DataManager:
         self.s3_client = boto3.client('s3',region_name = self.region)
         self.s3_resource = boto3.resource('s3',region_name = self.region) 
         
-            
+    def create_bucket(self):
+        try:
+            self.s3_client.head_bucket(Bucket=self.bucket_name)
+            print(f"Bucket {self.bucket_name} already exists")
+        except:
+            try:
+                if self.region == "eu-north-1":
+                    self.s3_client.create.bucket(
+                            Bucket=self.bucket_name,
+                            CreateBucketConfiguration={'LocationConstraint': self.region}
+                        )
+                print(f"Created bucket: {self.bucket_name}")
+            except Exception as e:
+                print(f"Error creating bucket: {e}")
+                raise
+
+        self.s3_client.put_bucket_versioning(
+            Bucket=self.bucket_name,
+            VersioningConfiguration={'Status': 'Enabled'}
+        )
+        
+        return f"s3://{self.bucket_name}"
