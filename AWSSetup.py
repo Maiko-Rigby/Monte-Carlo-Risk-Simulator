@@ -120,3 +120,30 @@ class S3DataManager:
         )
         
         return f"s3://{self.bucket_name}"
+    
+    def upload_dataframe(self, df, s3_key, file_format = 'parquet'):
+        print(f"Uploading {len(df)} records to s3 ://{self.bucket_name}/{s3_key}")
+
+        buffer = io.BytesIO()
+
+        if file_format == "parquet":
+            df.to_parquet(buffer, engine = "parquet", compression = "snappy", index = False)
+        elif file_format == "csv":
+            df.to_csv(buffer, index = False)
+        else:
+            raise ValueError(f"Unsupported file format: {file_format}")
+        
+        buffer.seek(0)
+
+        self.s3_client.put_object(
+            Bucket = self.bucket_name
+            Key = s3_key
+            Body = buffer.getvalue()
+        )
+
+        file_size_mb = len(buffer.getvalue()) / (1024 * 1024)
+        print(f"Uploaded {file_size_mb}MB")
+
+        return f"s3://{self.bucket_name}/{s3_key}"
+    
+    
