@@ -136,14 +136,23 @@ class S3DataManager:
         buffer.seek(0)
 
         self.s3_client.put_object(
-            Bucket = self.bucket_name
-            Key = s3_key
+            Bucket = self.bucket_name,
+            Key = s3_key,
             Body = buffer.getvalue()
         )
 
         file_size_mb = len(buffer.getvalue()) / (1024 * 1024)
         print(f"Uploaded {file_size_mb}MB")
 
+        return f"s3://{self.bucket_name}/{s3_key}"
+    
+    def upload_file(self, local_path, s3_key):
+        file_size_mb = os.path.getsize(local_path) / (1024 * 1024)
+        print(f"Uploading {local_path} ({file_size_mb}MB) to S3...")
+
+        self.s3_client.upload_file(local_path, self.bucket_name, s3_key)
+
+        print(f"Uploaded to s3://{self.bucket_name}/{s3_key}")
         return f"s3://{self.bucket_name}/{s3_key}"
     
     
