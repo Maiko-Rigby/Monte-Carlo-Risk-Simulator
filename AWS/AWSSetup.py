@@ -163,6 +163,21 @@ class S3DataManager:
             if file_path.is_file():
                 relative_path = file_path.relative_to(local_path)
                 s3_key = f"{s3_prefix}/{relative_path}"
+            
+            for file_path in local_path.rglob('*'):
+                if file_path.is_file():
+                    relative_path = file_path.relative_to(local_path)
+                    s3_key = f"{s3_prefix}/{relative_path}"
+                    
+                    self.s3_client.upload_file(
+                        str(file_path),
+                        self.bucket_name,
+                        s3_key
+                    )
+                    files_uploaded += 1
+        
+        print(f"Uploaded {files_uploaded} files from {local_dir}")
+        return f"s3://{self.bucket_name}/{s3_prefix}"
 
     def list_objects(self, prefix = ''):
         response = self.s3_client.list_objects_v2(
