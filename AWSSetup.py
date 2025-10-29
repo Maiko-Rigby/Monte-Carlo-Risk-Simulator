@@ -164,4 +164,32 @@ class S3DataManager:
                 relative_path = file_path.relative_to(local_path)
                 s3_key = f"{s3_prefix}/{relative_path}"
 
+    def list_objects(self, prefix = ''):
+        response = self.s3_client.list_objects_v2(
+            Bucket = self.bucket_name,
+            Prefix = prefix
+        )
+
+        if 'Contents' not in response:
+            print(f"No objects found with prefix: {prefix}")
+            return []
+        
+        objects = []
+        for obj in response['Contents']:
+            size_mb = obj['Size'] / (1024 * 1024)
+            objects.append({
+                'Key': obj['Key'],
+                'Size_MB': f"{size_mb:.2f}",
+                'LastModified': obj['LastModified']
+            })
+        
+        df = pd.DataFrame(objects)
+        print(f"\nObjects in s3://{self.bucket_name}/{prefix}:")
+        print(df.to_string(index=False))
+        
+        return objects
     
+    
+                  
+    
+
