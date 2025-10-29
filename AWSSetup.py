@@ -155,4 +155,13 @@ class S3DataManager:
         print(f"Uploaded to s3://{self.bucket_name}/{s3_key}")
         return f"s3://{self.bucket_name}/{s3_key}"
     
+    def upload_directory(self, local_dir, s3_prefix):
+        local_path = Path(local_dir)
+        files_uploaded = 0
+
+        for file_path in local_path.rglob('*'):
+            if file_path.is_file():
+                relative_path = file_path.relative_to(local_path)
+                s3_key = f"{s3_prefix}/{relative_path}"
+
     
