@@ -217,8 +217,13 @@ class S3DataManager:
         return local_path
     
 
-    
+class SageMakerDataPrep:
 
+    def __init__(self, s3_manager):
+        self.s3_manager = s3_manager
+
+    
+        
                   
     
 
