@@ -4,6 +4,7 @@ import numpy as np
 import json
 import os
 from pathlib import Path
+from sklearn.model_selection import train_test_split
 import sagemaker
 from sagemaker.sklearn import SKLearn
 from sagemaker.pytorch import PyTorch
@@ -222,8 +223,38 @@ class SageMakerDataPrep:
     def __init__(self, s3_manager):
         self.s3_manager = s3_manager
 
-    
+    def prepare_training_data(self, csv_path, test_size = 0.2):
+        print(f"Preparing data for sagemaker")
+
+        df = pd.read_csv(csv_path)
+        print(f"loaded {len(df)} records from {csv_path}")
+
+        print(f"egineering feature...")
+        feature_cols = ['daily_return', 'volatility', 'max_drawdown','portfolio_value', 'total_return']
+        feature_cols = [col for col in feature_cols if col in df.columns]
+
+        target_col = 'sharpe_ratio'
+
+        ml_df = df[feature_cols] + [target_col].dropna()
+
+        train_df, temp_df = train_test_split(ml_df, test_size=test_size*2, random_state=42)
+        val_df, test_df = train_test_split(temp_df, test_size=0.5, random_state=42)
+
+        print(f"\nData splits:")
+        print(f"  Train: {len(train_df)} ({len(train_df)/len(ml_df)*100:.1f}%)")
+        print(f"  Validation: {len(val_df)} ({len(val_df)/len(ml_df)*100:.1f}%)")
+        print(f"  Test: {len(test_df)} ({len(test_df)/len(ml_df)*100:.1f}%)")
+
+        s3_paths = {}
         
-                  
+        for name, data in [('train', train_df), ('validation', val_df), ('test', test_df)]:
+            s3_key = f"sagemaker/data/{name}/data.csv"
+            s3_paths[name] = self.s3_manager.upload_dataframe(
+                data, s3_key, file_format='csv'
+            )
+        
+        print(f"\nData prepared and uploaded to S3")
+        
+        return s3_paths, feature_cols, target_col
     
 
