@@ -257,4 +257,9 @@ class SageMakerDataPrep:
         
         return s3_paths, feature_cols, target_col
     
+class SageMakerTrainer:
 
+    def __init__(self, role, bucket_name, region = "eu-north-1"):
+        self.role = role
+        self.bucket_name = bucket_name
+        self.region = region
