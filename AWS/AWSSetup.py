@@ -263,3 +263,105 @@ class SageMakerTrainer:
         self.role = role
         self.bucket_name = bucket_name
         self.region = region
+
+    def create_training_script(self, output_dir = "sagemaker_code"):
+        os.makedirs(output_dir,exist_ok= True)
+
+        training_script = '''
+import argparse
+import os
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+import joblib
+import json
+
+def train(args):
+
+    # Load data from SageMaker paths
+    train_df = pd.read_csv(os.path.join(args.train, 'data.csv'))
+    val_df = pd.read_csv(os.path.join(args.validation, 'data.csv'))
+    
+    print(f"Training data: {train_df.shape}")
+    print(f"Validation data: {val_df.shape}")
+    
+    # Split features and target
+    target_col = 'sharpe_ratio'
+    feature_cols = [col for col in train_df.columns if col != target_col]
+    
+    X_train = train_df[feature_cols].values
+    y_train = train_df[target_col].values
+    X_val = val_df[feature_cols].values
+    y_val = val_df[target_col].values
+    
+    print(f"Features: {feature_cols}")
+    
+    # Train model with hyperparameters
+    model = RandomForestRegressor(
+        n_estimators=args.n_estimators,
+        max_depth=args.max_depth,
+        min_samples_split=args.min_samples_split,
+        random_state=42,
+        n_jobs=-1
+    )
+    
+    print("Training Random Forest model...")
+    model.fit(X_train, y_train)
+    
+    # Evaluate
+    train_pred = model.predict(X_train)
+    val_pred = model.predict(X_val)
+    
+    train_rmse = np.sqrt(mean_squared_error(y_train, train_pred))
+    val_rmse = np.sqrt(mean_squared_error(y_val, val_pred))
+    train_r2 = r2_score(y_train, train_pred)
+    val_r2 = r2_score(y_val, val_pred)
+    
+    print(f"\\nTraining Results:")
+    print(f"  Train RMSE: {train_rmse:.4f}, R²: {train_r2:.4f}")
+    print(f"  Val RMSE: {val_rmse:.4f}, R²: {val_r2:.4f}")
+    
+    # Save model
+    model_path = os.path.join(args.model_dir, 'model.joblib')
+    joblib.dump(model, model_path)
+    print(f"Model saved to {model_path}")
+    
+    # Save metrics
+    metrics = {
+        'train_rmse': float(train_rmse),
+        'val_rmse': float(val_rmse),
+        'train_r2': float(train_r2),
+        'val_r2': float(val_r2)
+    }
+    
+    metrics_path = os.path.join(args.output_data_dir, 'metrics.json')
+    with open(metrics_path, 'w') as f:
+        json.dump(metrics, f)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    
+    # Hyperparameters
+    parser.add_argument('--n-estimators', type=int, default=100)
+    parser.add_argument('--max-depth', type=int, default=10)
+    parser.add_argument('--min-samples-split', type=int, default=5)
+    
+    # SageMaker environment paths
+    parser.add_argument('--model-dir', type=str, default=os.environ.get('SM_MODEL_DIR'))
+    parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAIN'))
+    parser.add_argument('--validation', type=str, default=os.environ.get('SM_CHANNEL_VALIDATION'))
+    parser.add_argument('--output-data-dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR'))
+    
+    args = parser.parse_args()
+    train(args)
+'''
+        script_path = os.path.join(output_dir, 'train.py')
+        with open(script_path, 'w') as f:
+            f.write(training_script)
+
+            print(f"Training script created: {script_path}")
+            return script_path
+        
+    
+    
