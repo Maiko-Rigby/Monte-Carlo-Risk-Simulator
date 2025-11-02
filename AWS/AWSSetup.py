@@ -363,5 +363,44 @@ if __name__ == '__main__':
             print(f"Training script created: {script_path}")
             return script_path
         
+    def launch_training_script(self, s3_data_paths, script_path, instance_type='ml.m5.large', use_spot=True):
+        print('Launching training script')
+
+        sklearn_estimator = SKLearn(
+            entry_point= script_path,
+            role = self.role,
+            instance_type = instance_type,
+            instance_count=1,
+            framework_version='1.2-1',
+            py_version='py3',
+            hyperparameters={
+                'n-estimators': 100,
+                'max-depth': 10,
+                'min-samples-split': 5
+            },
+            output_path=f"s3://{self.bucket_name}/sagemaker/output",
+            base_job_name='portfolio-risk-model',
+            use_spot_instances=use_spot,
+            max_run=3600,  # 1 hour max
+            max_wait=7200 if use_spot else None,  # Wait up to 2 hours for spot
+        )
+
+        print(f"Instance type: {instance_type}")
+        print(f"Spot instances: {use_spot}")
+        print(f"Role: {self.role}")
+        
+        print("Starting training job...")
+        print("This will take 5-10 minutes...")
+        
+        sklearn_estimator.fit({
+            'train': s3_data_paths['train'],
+            'validation': s3_data_paths['validation']
+        })
+        
+        print(f"Training complete!")
+        print(f"Model artifacts: {sklearn_estimator.model_data}")
+        
+        return sklearn_estimator
+        
     
     
