@@ -402,5 +402,13 @@ if __name__ == '__main__':
         
         return sklearn_estimator
         
+class SageMakerLSTMTrainer:
+
+    def __init__(self, role, bucket_name):
+        self.role = role
+        self.bucket_name = bucket_name
+        self.sagemaker_session = sagemaker.session()
+
     
+        
     
