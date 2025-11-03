@@ -268,94 +268,94 @@ class SageMakerTrainer:
         os.makedirs(output_dir,exist_ok= True)
 
         training_script = '''
-import argparse
-import os
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
-import joblib
-import json
+    import argparse
+    import os
+    import pandas as pd
+    import numpy as np
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.metrics import mean_squared_error, r2_score
+    import joblib
+    import json
 
-def train(args):
+    def train(args):
 
-    # Load data from SageMaker paths
-    train_df = pd.read_csv(os.path.join(args.train, 'data.csv'))
-    val_df = pd.read_csv(os.path.join(args.validation, 'data.csv'))
-    
-    print(f"Training data: {train_df.shape}")
-    print(f"Validation data: {val_df.shape}")
-    
-    # Split features and target
-    target_col = 'sharpe_ratio'
-    feature_cols = [col for col in train_df.columns if col != target_col]
-    
-    X_train = train_df[feature_cols].values
-    y_train = train_df[target_col].values
-    X_val = val_df[feature_cols].values
-    y_val = val_df[target_col].values
-    
-    print(f"Features: {feature_cols}")
-    
-    # Train model with hyperparameters
-    model = RandomForestRegressor(
-        n_estimators=args.n_estimators,
-        max_depth=args.max_depth,
-        min_samples_split=args.min_samples_split,
-        random_state=42,
-        n_jobs=-1
-    )
-    
-    print("Training Random Forest model...")
-    model.fit(X_train, y_train)
-    
-    # Evaluate
-    train_pred = model.predict(X_train)
-    val_pred = model.predict(X_val)
-    
-    train_rmse = np.sqrt(mean_squared_error(y_train, train_pred))
-    val_rmse = np.sqrt(mean_squared_error(y_val, val_pred))
-    train_r2 = r2_score(y_train, train_pred)
-    val_r2 = r2_score(y_val, val_pred)
-    
-    print(f"\\nTraining Results:")
-    print(f"  Train RMSE: {train_rmse:.4f}, R²: {train_r2:.4f}")
-    print(f"  Val RMSE: {val_rmse:.4f}, R²: {val_r2:.4f}")
-    
-    # Save model
-    model_path = os.path.join(args.model_dir, 'model.joblib')
-    joblib.dump(model, model_path)
-    print(f"Model saved to {model_path}")
-    
-    # Save metrics
-    metrics = {
-        'train_rmse': float(train_rmse),
-        'val_rmse': float(val_rmse),
-        'train_r2': float(train_r2),
-        'val_r2': float(val_r2)
-    }
-    
-    metrics_path = os.path.join(args.output_data_dir, 'metrics.json')
-    with open(metrics_path, 'w') as f:
-        json.dump(metrics, f)
+        # Load data from SageMaker paths
+        train_df = pd.read_csv(os.path.join(args.train, 'data.csv'))
+        val_df = pd.read_csv(os.path.join(args.validation, 'data.csv'))
+        
+        print(f"Training data: {train_df.shape}")
+        print(f"Validation data: {val_df.shape}")
+        
+        # Split features and target
+        target_col = 'sharpe_ratio'
+        feature_cols = [col for col in train_df.columns if col != target_col]
+        
+        X_train = train_df[feature_cols].values
+        y_train = train_df[target_col].values
+        X_val = val_df[feature_cols].values
+        y_val = val_df[target_col].values
+        
+        print(f"Features: {feature_cols}")
+        
+        # Train model with hyperparameters
+        model = RandomForestRegressor(
+            n_estimators=args.n_estimators,
+            max_depth=args.max_depth,
+            min_samples_split=args.min_samples_split,
+            random_state=42,
+            n_jobs=-1
+        )
+        
+        print("Training Random Forest model...")
+        model.fit(X_train, y_train)
+        
+        # Evaluate
+        train_pred = model.predict(X_train)
+        val_pred = model.predict(X_val)
+        
+        train_rmse = np.sqrt(mean_squared_error(y_train, train_pred))
+        val_rmse = np.sqrt(mean_squared_error(y_val, val_pred))
+        train_r2 = r2_score(y_train, train_pred)
+        val_r2 = r2_score(y_val, val_pred)
+        
+        print(f"\\nTraining Results:")
+        print(f"  Train RMSE: {train_rmse:.4f}, R²: {train_r2:.4f}")
+        print(f"  Val RMSE: {val_rmse:.4f}, R²: {val_r2:.4f}")
+        
+        # Save model
+        model_path = os.path.join(args.model_dir, 'model.joblib')
+        joblib.dump(model, model_path)
+        print(f"Model saved to {model_path}")
+        
+        # Save metrics
+        metrics = {
+            'train_rmse': float(train_rmse),
+            'val_rmse': float(val_rmse),
+            'train_r2': float(train_r2),
+            'val_r2': float(val_r2)
+        }
+        
+        metrics_path = os.path.join(args.output_data_dir, 'metrics.json')
+        with open(metrics_path, 'w') as f:
+            json.dump(metrics, f)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    
-    # Hyperparameters
-    parser.add_argument('--n-estimators', type=int, default=100)
-    parser.add_argument('--max-depth', type=int, default=10)
-    parser.add_argument('--min-samples-split', type=int, default=5)
-    
-    # SageMaker environment paths
-    parser.add_argument('--model-dir', type=str, default=os.environ.get('SM_MODEL_DIR'))
-    parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAIN'))
-    parser.add_argument('--validation', type=str, default=os.environ.get('SM_CHANNEL_VALIDATION'))
-    parser.add_argument('--output-data-dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR'))
-    
-    args = parser.parse_args()
-    train(args)
-'''
+    if __name__ == '__main__':
+        parser = argparse.ArgumentParser()
+        
+        # Hyperparameters
+        parser.add_argument('--n-estimators', type=int, default=100)
+        parser.add_argument('--max-depth', type=int, default=10)
+        parser.add_argument('--min-samples-split', type=int, default=5)
+        
+        # SageMaker environment paths
+        parser.add_argument('--model-dir', type=str, default=os.environ.get('SM_MODEL_DIR'))
+        parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAIN'))
+        parser.add_argument('--validation', type=str, default=os.environ.get('SM_CHANNEL_VALIDATION'))
+        parser.add_argument('--output-data-dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR'))
+        
+        args = parser.parse_args()
+        train(args)
+    '''
         script_path = os.path.join(output_dir, 'train.py')
         with open(script_path, 'w') as f:
             f.write(training_script)
@@ -409,6 +409,124 @@ class SageMakerLSTMTrainer:
         self.bucket_name = bucket_name
         self.sagemaker_session = sagemaker.session()
 
+    def create_pytorch_script(self, output_dir = 'sagemaker_code'):
+
+        os.makedirs(output_dir, exist_ok= True)
+
+        lstm_script = '''
+    import argparse
+    import os
+    import pandas as pd
+    import numpy as np
+    import torch
+    import torch.nn as nn
+    import torch.optim as optim
+    from torch.utils.data import TensorDataset, DataLoader
+    import json
+
+    class LSTMModel(nn.Module):
+        def __init__(self, input_size, hidden_size=64, num_layers=2):
+            super(LSTMModel, self).__init__()
+            self.lstm = nn.LSTM(input_size, hidden_size, num_layers, 
+                            batch_first=True, dropout=0.2)
+            self.fc = nn.Linear(hidden_size, 1)
+        
+        def forward(self, x):
+            lstm_out, _ = self.lstm(x)
+            return self.fc(lstm_out[:, -1, :]).squeeze()
+
+    def create_sequences(data, seq_length=10):
+        """Create time series sequences"""
+        sequences, targets = [], []
+        
+        for i in range(len(data) - seq_length):
+            seq = data[i:i+seq_length, :-1]  # All columns except target
+            target = data[i+seq_length, -1]   # Last column is target
+            sequences.append(seq)
+            targets.append(target)
+        
+        return np.array(sequences), np.array(targets)
+
+    def train(args):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"Using device: {device}")
+        
+        # Load data
+        train_df = pd.read_csv(os.path.join(args.train, 'data.csv'))
+        val_df = pd.read_csv(os.path.join(args.validation, 'data.csv'))
+        
+        # Create sequences
+        X_train, y_train = create_sequences(train_df.values, args.sequence_length)
+        X_val, y_val = create_sequences(val_df.values, args.sequence_length)
+        
+        # Convert to tensors
+        train_dataset = TensorDataset(
+            torch.FloatTensor(X_train),
+            torch.FloatTensor(y_train)
+        )
+        val_dataset = TensorDataset(
+            torch.FloatTensor(X_val),
+            torch.FloatTensor(y_val)
+        )
+        
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=args.batch_size)
+        
+        # Model
+        model = LSTMModel(
+            input_size=X_train.shape[2],
+            hidden_size=args.hidden_size,
+            num_layers=args.num_layers
+        ).to(device)
+        
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+        
+        # Training loop
+        for epoch in range(args.epochs):
+            model.train()
+            train_loss = 0
+            
+            for X_batch, y_batch in train_loader:
+                X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+                
+                optimizer.zero_grad()
+                outputs = model(X_batch)
+                loss = criterion(outputs, y_batch)
+                loss.backward()
+                optimizer.step()
+                
+                train_loss += loss.item()
+            
+            if (epoch + 1) % 10 == 0:
+                print(f"Epoch {epoch+1}/{args.epochs}, Loss: {train_loss/len(train_loader):.4f}")
+        
+        # Save model
+        torch.save(model.state_dict(), os.path.join(args.model_dir, 'model.pth'))
+        print("Model saved")
+
+    if __name__ == '__main__':
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--epochs', type=int, default=50)
+        parser.add_argument('--batch-size', type=int, default=64)
+        parser.add_argument('--learning-rate', type=float, default=0.001)
+        parser.add_argument('--hidden-size', type=int, default=64)
+        parser.add_argument('--num-layers', type=int, default=2)
+        parser.add_argument('--sequence-length', type=int, default=10)
+        parser.add_argument('--model-dir', type=str, default=os.environ.get('SM_MODEL_DIR'))
+        parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAIN'))
+        parser.add_argument('--validation', type=str, default=os.environ.get('SM_CHANNEL_VALIDATION'))
+        
+        args = parser.parse_args()
+        train(args)
+    '''
+        script_path = os.path.join(output_dir, 'train_lstm.py')
+        with open(script_path, 'w') as f:
+            f.write(lstm_script)
+
+        print(f'PyTorch LSTM script created: {script_path}')
+        return script_path
     
+
         
     
