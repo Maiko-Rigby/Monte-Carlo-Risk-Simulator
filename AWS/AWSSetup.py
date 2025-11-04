@@ -529,4 +529,50 @@ class SageMakerLSTMTrainer:
     
 
         
+def complete_asw_workflow(csv_path = 'simulation_results.csv', bucket_name = 'my-portfolio-ml-bucket'):
+    print('AWS PIPELINE - WORKFLOW')
+
+    print('Setting up AWS')
+    aws_setup = AWSSetup(region = 'eu-north-1')
+
+    if not aws_setup.verify_credentials():
+        return
     
+    if aws_setup.role is None:
+        aws_setup.create_sagemaker_role()
+
+    print('Creating S3 Bucket')
+    s3_manager = S3DataManager(bucket_name, region = 'eu-north-1')
+    s3_manager.create_bucket()
+
+    print('Preparing and Uploading Data')
+    data_prep = SageMakerDataPrep(s3_manager= s3_manager)
+    s3_paths, feature_cols, target_col = data_prep.prepare_training_data(csv_path)
+
+    s3_manager.list_objects(prefix = 'sagemaker/data')
+
+    print('Creating Training Script')
+    trainer = SageMakerTrainer(
+        role = aws_setup.role,
+        bucket_name = bucket_name,
+        region = 'eu-north-1'
+    )
+    script_path = trainer.create_training_script()
+
+    proceed = input('Proceed with Training (YES/NO)?')
+
+    if proceed.lower() is 'yes':
+        estimator = trainer.launch_training_script(
+            s3_data_paths= s3_paths,
+            script_path= script_path,
+            instance_type= 'ml.m5.large',
+            use_spot= True
+        )
+
+        print('Training Complete')
+        print(f'Model Location: {estimator.model_data}')
+
+        model_s3_key = estimator.model_data.split(f'{bucket_name}/')[1]
+        s3_manager.download_file(model_s3_key, 'model.tar.gz')
+
+        print('WORKFLOW COMPLETE!')
