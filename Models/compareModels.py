@@ -1,11 +1,8 @@
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings('ignore')
 import torch
-
-
 
 def compare_models(regression_results, LSTM_results):
     print("MODEL COMPARISON SUMARRY HEADER")
