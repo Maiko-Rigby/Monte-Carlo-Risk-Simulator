@@ -1,0 +1,75 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings('ignore')
+import torch
+
+def compare_models(regression_results, LSTM_results):
+    print("MODEL COMPARISON SUMARRY HEADER")
+
+    comparison_data = []
+
+    for model_name, results in regression_results:
+        model_results = dict(
+            Model = model_name,
+            Type = "Regression",
+            train_RMSE = results['train']['rmse'],
+            test_RMSE = results['test']['rmse'],
+            train_R = results['train']['r2'],
+            test_R = results['test']['r2'],
+            Overfitting = results['train']['r2']  - results['test']['r2']
+        )
+
+    comparison_data.append(model_results)
+
+    if LSTM_results and torch.cuda.is_available():
+        LSTM_model_results = dict(
+            Model = "LSTM",
+            Type = "Deep Dearning",
+            train_RMSE = results['train']['rmse'],
+            test_RMSE = results['test']['rmse'],
+            train_R = results['train']['r2'],
+            test_R = results['test']['r2'],
+            Overfitting = results['train']['r2']  - results['test']['r2']
+        )
+
+    comparison_data.append(LSTM_model_results)
+    comparison_df = pd.DataFrame(comparison_df)
+    comparison_df = comparison_df.sort_values("test_R", ascending= False)
+
+    print(comparison_df.head)
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    x = range(len(comparison_df))
+    axes[0].bar([i-0.2 for i in x], comparison_df['Train R²'], width=0.4, 
+               label='Train', alpha=0.8)
+    axes[0].bar([i+0.2 for i in x], comparison_df['Test R²'], width=0.4, 
+               label='Test', alpha=0.8)
+    axes[0].set_xticks(x)
+    axes[0].set_xticklabels(comparison_df['Model'], rotation=45, ha='right')
+    axes[0].set_ylabel('R² Score')
+    axes[0].set_title('Model Performance Comparison (R²)')
+    axes[0].legend()
+    axes[0].grid(axis='y', alpha=0.3)
+
+    axes[1].bar([i-0.2 for i in x], comparison_df['Train RMSE'], width=0.4, 
+               label='Train', alpha=0.8)
+    axes[1].bar([i+0.2 for i in x], comparison_df['Test RMSE'], width=0.4, 
+               label='Test', alpha=0.8)
+    axes[1].set_xticks(x)
+    axes[1].set_xticklabels(comparison_df['Model'], rotation=45, ha='right')
+    axes[1].set_ylabel('RMSE')
+    axes[1].set_title('Model Performance Comparison (RMSE)')
+    axes[1].legend()
+    axes[1].grid(axis='y', alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+    best_model = comparison_df.iloc[0]
+    print(f"\n🏆 BEST MODEL: {best_model['Model']}")
+    print(f"   Test R²: {best_model['Test R²']:.4f}")
+    print(f"   Test RMSE: {best_model['Test RMSE']:.4f}")
+    
+    return comparison_df
