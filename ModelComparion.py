@@ -12,5 +12,7 @@ from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.linear_model import Ridge, Lasso
 from CompareModels.py import compare_models
 
-df = pd.readcsv("simulation_results.csv")
+df = pd.readcsv("simulation_results_progressive.csv")
+
+
 

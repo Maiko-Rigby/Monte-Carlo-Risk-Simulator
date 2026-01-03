@@ -342,7 +342,7 @@ class MonteCarloSimulator:
             end_value = sim_data["portfolio_value"].iloc[-1]
             color = "green" if end_value >= self.initial_investment else "red"
 
-            line, = ax.plot([], [], color=color, alpha=0.5, linewidth = 1)
+            line, = ax.plot([], [], color=color, alpha=0.5, linewidth = 2)
             lines.append((line, sim_data))
 
         ax.axhline(
@@ -411,29 +411,43 @@ class MonteCarloSimulator:
 def main():
 
     stocks = [
-        Stock(ticker='AAPL', mean_annual_return=0.12, annual_volatility=0.25),
-        Stock(ticker='MSFT', mean_annual_return=0.15, annual_volatility=0.28),
-        Stock(ticker='GOOGL', mean_annual_return=0.10, annual_volatility=0.22),
+        Stock(ticker="AAPL",  mean_annual_return=0.12, annual_volatility=0.25),
+        Stock(ticker="MSFT",  mean_annual_return=0.14, annual_volatility=0.24),
+        Stock(ticker="GOOGL", mean_annual_return=0.11, annual_volatility=0.23),
+        Stock(ticker="AMZN",  mean_annual_return=0.13, annual_volatility=0.30),
+        Stock(ticker="NVDA",  mean_annual_return=0.18, annual_volatility=0.40),
+        Stock(ticker="JNJ",   mean_annual_return=0.08, annual_volatility=0.18)  # defensive
     ]
 
-    weights = [0.4, 0.3, 0.3]
+
+    weights = [
+        0.22,  # AAPL
+        0.20,  # MSFT
+        0.18,  # GOOGL
+        0.15,  # AMZN
+        0.15,  # NVDA
+        0.10   # JNJ
+    ]
 
     correlation_matrix = np.array([
-        [1.0, 0.7, 0.6],   # AAPL correlations
-        [0.7, 1.0, 0.65],  # MSFT correlations
-        [0.6, 0.65, 1.0]   # GOOGL correlations
+    [1.00, 0.75, 0.70, 0.65, 0.60, 0.30],  # AAPL
+    [0.75, 1.00, 0.72, 0.68, 0.65, 0.32],  # MSFT
+    [0.70, 0.72, 1.00, 0.66, 0.62, 0.28],  # GOOGL
+    [0.65, 0.68, 0.66, 1.00, 0.70, 0.25],  # AMZN
+    [0.60, 0.65, 0.62, 0.70, 1.00, 0.20],  # NVDA
+    [0.30, 0.32, 0.28, 0.25, 0.20, 1.00]   # JNJ
     ])
 
     portfolio = MonteCarloSimulator(
         stocks=stocks,
         weights=weights,
         correlation_matrix=correlation_matrix,
-        initial_investment=35000
+        initial_investment=10000
     )
 
     results = portfolio.run_simulations(
-        n_simulations=78,
-        years=1,
+        n_simulations=1000,
+        years=5,
         parallel=False # Change for day-day trading or full
     )
     # summary = portfolio.analyse_results(results)
@@ -455,8 +469,8 @@ def main():
     output_file = portfolio.save_results(results)
     
     # Visualise
-    print("\nGenerating visualisations...")
-    portfolio.visualise_results_progressive(results, save_path="monte_carlo_animation.mp4")
+    # print("\nGenerating visualisations...")
+    # portfolio.visualise_results_progressive(results, save_path="monte_carlo_animation.mp4")
 
 if __name__ == "__main__":
     mp.freeze_support()  # for Windows compatibility
