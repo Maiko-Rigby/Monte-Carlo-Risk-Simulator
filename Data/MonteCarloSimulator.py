@@ -8,6 +8,7 @@ import multiprocessing as mp
 from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib.animation import PillowWriter
 
 @dataclass
 class Stock:
@@ -342,7 +343,7 @@ class MonteCarloSimulator:
             end_value = sim_data["portfolio_value"].iloc[-1]
             color = "green" if end_value >= self.initial_investment else "red"
 
-            line, = ax.plot([], [], color=color, alpha=0.5, linewidth = 2)
+            line, = ax.plot([], [], color=color, alpha=0.2, linewidth = 3)
             lines.append((line, sim_data))
 
         ax.axhline(
@@ -382,7 +383,8 @@ class MonteCarloSimulator:
             blit=True
         )
         if save_path:
-            anim.save(save_path, fps=30, dpi=150)
+            writer = PillowWriter(fps=24)
+            anim.save(save_path, writer = writer)
         
     def analyse_results(self, results_df: pd.DataFrame) -> dict:
         """
@@ -446,11 +448,17 @@ def main():
     )
 
     results = portfolio.run_simulations(
-        n_simulations=1000,
-        years=5,
-        parallel=False # Change for day-day trading or full
+        n_simulations=75,
+        years=1,
+        parallel = False # Change for day-day trading or full
     )
-    # summary = portfolio.analyse_results(results)
+
+    # results_2 = portfolio.run_simulations (
+    #     n_simulations= 10000,
+    #     years = 5,
+    #     parallel = True
+    # )
+    # summary = portfolio.analyse_results(results_2)
 
     # print(f"\nExpected Final Value: ${summary['expected_final_value']:,.2f}")
     # print(f"Median Final Value: ${summary['median_final_value']:,.2f}")
@@ -466,12 +474,13 @@ def main():
     # print(f"  Mean Max Drawdown: {summary['mean_max_drawdown']*100:.2f}%")
     
     # Save results
-    output_file = portfolio.save_results(results)
+    # output_file = portfolio.save_results(results_2)
     
     # Visualise
-    # print("\nGenerating visualisations...")
-    # portfolio.visualise_results_progressive(results, save_path="monte_carlo_animation.mp4")
+    print("\nGenerating visualisations...")
+    portfolio.visualise_results_progressive(results, save_path="monte_carlo_animation.gif")
+    # portfolio.visualise_results_non_progressive(results_2, save_path="monte_carlo_portfolio_analysis.png")
 
 if __name__ == "__main__":
-    mp.freeze_support()  # for Windows compatibility
+    mp.freeze_support() 
     main()
