@@ -7,6 +7,7 @@ from pathlib import Path
 import multiprocessing as mp
 from functools import partial
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 @dataclass
 class Stock:
@@ -50,7 +51,7 @@ class MonteCarloSimulator:
 
         # Conver the annual parameters to daily
         self.daily_returns = np.array([s.mean_annual_return / 252 for s in stocks])
-        self.daily_volatilities = np.array([s.annual_volatility / 252 for s in stocks])
+        self.daily_volatilities = np.array([s.annual_volatility / np.sqrt(252) for s in stocks])
 
         # Create a covariance matrix for correlation and volatilities
         self.cov_matrix = self._correlation_to_covariance(correlation_matrix, self.daily_volatilities)
@@ -65,7 +66,7 @@ class MonteCarloSimulator:
         vol_matrix = np.diag(volatilities)
         return vol_matrix @ corr_matrix @ vol_matrix
 
-    def simulate_single_path(self, days: int, seed: int = None) -> Tuple[np.ndarray, dict]:
+    def simulate_single_path(self, days: int, seed: int = None, Progressive: bool = False) -> Tuple[np.ndarray, dict]:
         """
         ---------------------------------------------------------------
             Simulate a single portfolio path using Brownian Motion
@@ -86,20 +87,34 @@ class MonteCarloSimulator:
 
         n_stocks = len(self.stocks)
 
-        # Generate correlated random returns using Cholesky decomposition
+        # Correlated shocks
         L = np.linalg.cholesky(self.cov_matrix)
-        random_normals = np.random.normal(0,1, (days, n_stocks))
-        correlated_returns = random_normals @ L.T
+        Z = np.random.normal(0, 1, (days, n_stocks))
+        correlated_returns = Z @ L.T
 
-        # Add drift 
-        returns = self.daily_returns + correlated_returns
+        # Volatility clustering
+        vol_scale = np.random.lognormal(mean=0.0, sigma=0.25, size=days)
+        correlated_returns *= vol_scale[:, None]
+
+        # Jump diffusion
+        jump_prob = 0.01
+        jump_size = np.random.normal(-0.03, 0.02, size=(days, n_stocks))
+        jumps = (np.random.rand(days, n_stocks) < jump_prob) * jump_size
+        correlated_returns += jumps
+
+        # GBM log-returns (computed ONCE)
+        log_returns = (
+            self.daily_returns
+            - 0.5 * np.diag(self.cov_matrix)
+            + correlated_returns
+        )
 
         # Calculate the individual stock prices
         stock_prices = np.zeros((days + 1, n_stocks))
         stock_prices[0] = self.initial_investment * self.weights
 
         for i in range(days):
-            stock_prices[i + 1] = stock_prices[i] * (1 + returns[i])
+            stock_prices[i + 1] = stock_prices[i] * np.exp(log_returns[i])
         
         # Portfolio value is sum of all stock positions
         portfolio_values = stock_prices.sum(axis=1)
@@ -117,8 +132,11 @@ class MonteCarloSimulator:
             'var_95': np.percentile(portfolio_returns, 5),
             'cvar_95': portfolio_returns[portfolio_returns <= np.percentile(portfolio_returns, 5)].mean()            
         }
-        
-        return portfolio_values, metrics
+        if Progressive:
+            return portfolio_values, portfolio_values
+        else:
+            return portfolio_values, metrics
+
     
     @staticmethod
     def _calculate_max_drawdown(values):
@@ -131,7 +149,7 @@ class MonteCarloSimulator:
         drawdown = (values - peak) / peak
         return np.min(drawdown)
     
-    def run_simulations(self, n_simulations: int, years: int = 5, parallel : bool = False, n_jobs: int = -1) -> pd.DataFrame:
+    def run_simulations(self, n_simulations: int, years: int = 5, parallel: bool = False, n_jobs: int = -1) -> pd.DataFrame:
         """
         ---------------------------------------------------------------
                             Run monte carlo simulation
@@ -157,7 +175,7 @@ class MonteCarloSimulator:
         if parallel:
             results = self._run_parallel(n_simulations, days, n_jobs)
         else:
-            results = self._run_serial(n_simulations, days)
+            results = self.run_path_simulations(n_simulations, days) # Run the path per day instead
 
         elapsed = time.time() - start_time
         print(f"Completed in {elapsed:.2f} seconds ({n_simulations/elapsed:0f} sims/sec)")
@@ -181,6 +199,27 @@ class MonteCarloSimulator:
 
         return pd.DataFrame(results)
     
+    def run_path_simulations(self, n_simulations: int, days: int) -> pd.DataFrame:
+        """
+        ---------------------------------------------------------------
+                    Serial runthrough per day of trading
+        ---------------------------------------------------------------
+        """
+        records = []
+
+        for sim_id in range(n_simulations):
+            values, returns = self.simulate_single_path(days, seed=sim_id, Progressive= True)
+
+            for day in range(len(values)):
+                records.append({
+                    "simulation_id": sim_id,
+                    "day": day,
+                    "portfolio_value": values[day],
+                    "portfolio_return": returns[day-1] if day > 0 else 0.0
+                })
+
+        return pd.DataFrame(records)
+
     def _run_parallel(self, n_simulations: int, days: int, n_jobs: int = -1) -> pd.DataFrame:
         """
         ---------------------------------------------------------------
@@ -221,7 +260,7 @@ class MonteCarloSimulator:
         print(f"Results saved at {output_path.absolute()}")
         return output_path
     
-    def visualise_results(self, results_df: pd.DataFrame, save_path: str = None):
+    def visualise_results_non_progressive(self, results_df: pd.DataFrame, save_path: str = None):
         """
         ---------------------------------------------------------------
                         Create visualsations of the results
@@ -284,10 +323,67 @@ class MonteCarloSimulator:
         
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
-            print(f"Visualization saved to: {save_path}")
+            print(f"Visualisation saved to: {save_path}")
         
         plt.show()
+    def visualise_results_progressive(self, results_df : pd.DataFrame, save_path: str = None):
+        """
+        ---------------------------------------------------------------
+                    Visualise day-by-day Results
+        ---------------------------------------------------------------
+        """
 
+        fig, ax = plt.subplots(figsize=(15, 8))
+
+        lines = []
+        groups = list(results_df.groupby("simulation_id"))
+
+        for sim_id, sim_data in groups:
+            end_value = sim_data["portfolio_value"].iloc[-1]
+            color = "green" if end_value >= self.initial_investment else "red"
+
+            line, = ax.plot([], [], color=color, alpha=0.5, linewidth = 1)
+            lines.append((line, sim_data))
+
+        ax.axhline(
+            self.initial_investment,
+            color="black",
+            linestyle="--",
+            linewidth=1
+        )
+
+        ax.set_xlim(
+            results_df["day"].min(),
+            results_df["day"].max()
+        )
+        ax.set_ylim(
+            results_df["portfolio_value"].min(),
+            results_df["portfolio_value"].max()
+        )
+
+        ax.set_xlabel("Trading Day")
+        ax.set_ylabel("Portfolio Value")
+        ax.set_title("Monte Carlo Simulation Paths")
+        ax.grid(alpha=0.3)
+
+
+        def update(frame):
+            for line, sim_data in lines:
+                subset = sim_data[sim_data["day"] <= frame]
+                line.set_data(subset["day"], subset["portfolio_value"])
+            return [line for line, _ in lines]
+
+
+        anim = FuncAnimation(
+            fig,
+            update,
+            frames=results_df["day"].unique(),
+            interval=50,
+            blit=True
+        )
+        if save_path:
+            anim.save(save_path, fps=30, dpi=150)
+        
     def analyse_results(self, results_df: pd.DataFrame) -> dict:
         """
         ---------------------------------------------------------------
@@ -332,35 +428,35 @@ def main():
         stocks=stocks,
         weights=weights,
         correlation_matrix=correlation_matrix,
-        initial_investment=10000
+        initial_investment=35000
     )
 
     results = portfolio.run_simulations(
-        n_simulations=10000,
-        years=5,
-        parallel=True
+        n_simulations=78,
+        years=1,
+        parallel=False # Change for day-day trading or full
     )
-    summary = portfolio.analyse_results(results)
+    # summary = portfolio.analyse_results(results)
 
-    print(f"\nExpected Final Value: ${summary['expected_final_value']:,.2f}")
-    print(f"Median Final Value: ${summary['median_final_value']:,.2f}")
-    print(f"Expected Total Return: {summary['expected_total_return']*100:.2f}%")
-    print(f"Return Std Dev: {summary['return_std']*100:.2f}%")
-    print(f"Probability of Profit: {summary['probability_profit']*100:.1f}%")
-    print(f"\nRisk Metrics:")
-    print(f"  95% VaR: ${summary['var_95_portfolio']:,.2f}")
-    print(f"  95% CVaR: ${summary['cvar_95_portfolio']:,.2f}")
-    print(f"  Best Case: ${summary['best_case']:,.2f}")
-    print(f"  Worst Case: ${summary['worst_case']:,.2f}")
-    print(f"  Mean Sharpe Ratio: {summary['mean_sharpe_ratio']:.3f}")
-    print(f"  Mean Max Drawdown: {summary['mean_max_drawdown']*100:.2f}%")
+    # print(f"\nExpected Final Value: ${summary['expected_final_value']:,.2f}")
+    # print(f"Median Final Value: ${summary['median_final_value']:,.2f}")
+    # print(f"Expected Total Return: {summary['expected_total_return']*100:.2f}%")
+    # print(f"Return Std Dev: {summary['return_std']*100:.2f}%")
+    # print(f"Probability of Profit: {summary['probability_profit']*100:.1f}%")
+    # print(f"\nRisk Metrics:")
+    # print(f"  95% VaR: ${summary['var_95_portfolio']:,.2f}")
+    # print(f"  95% CVaR: ${summary['cvar_95_portfolio']:,.2f}")
+    # print(f"  Best Case: ${summary['best_case']:,.2f}")
+    # print(f"  Worst Case: ${summary['worst_case']:,.2f}")
+    # print(f"  Mean Sharpe Ratio: {summary['mean_sharpe_ratio']:.3f}")
+    # print(f"  Mean Max Drawdown: {summary['mean_max_drawdown']*100:.2f}%")
     
     # Save results
     output_file = portfolio.save_results(results)
     
-    # Visualize
-    print("\nGenerating visualizations...")
-    portfolio.visualise_results(results, save_path='portfolio_analysis.png')
+    # Visualise
+    print("\nGenerating visualisations...")
+    portfolio.visualise_results_progressive(results, save_path="monte_carlo_animation.mp4")
 
 if __name__ == "__main__":
     mp.freeze_support()  # for Windows compatibility
